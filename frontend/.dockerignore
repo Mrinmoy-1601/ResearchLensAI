@@ -1,0 +1,7 @@
+.git
+.github
+.env
+.vercel
+vercel.json
+node_modules/
+README.md

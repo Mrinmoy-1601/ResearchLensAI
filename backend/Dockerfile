@@ -25,5 +25,5 @@ COPY . .
 # Expose the API port
 EXPOSE 8000
 
-# Start the uvicorn server
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Start the uvicorn server, mapping to Render's dynamic PORT or falling back to 8000
+CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
