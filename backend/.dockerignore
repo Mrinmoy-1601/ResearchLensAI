@@ -1,0 +1,25 @@
+# Ignore system, cache, and virtual environment files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ignore env and venv directories
+env/
+venv/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Ignore local environment variables (these should be injected by the deployment platform instead)
+.env
+.env.local
+
+# Ignore test and coverage cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Ignore OS-generated files
+.DS_Store
+Thumbs.db
