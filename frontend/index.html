@@ -1,0 +1,541 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ResearchLens AI — Intelligent Paper Analysis</title>
+  <meta name="description" content="Upload any research paper and get instant AI-powered summaries, peer review, publication venue suggestions, and similar paper discovery." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css?v=2" />
+  <style>
+    /* Fallback inline critical styles in case external CSS fails to load */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg-base: #060b18; --bg-card: #0f1a30; --bg-input: #0d1628;
+      --border: rgba(99,140,255,0.14); --border-bright: rgba(99,140,255,0.32);
+      --accent: #638cff; --accent-dark: #3d66e8; --teal: #00e5b8; --purple: #b06aff;
+      --text-primary: #edf2ff; --text-secondary: #8fa8d0; --text-muted: #4a6080;
+      --error: #ff5252; --success: #22d45e;
+      --radius-sm: 10px; --radius-md: 16px; --radius-xl: 30px; --radius-pill: 999px;
+      --font: 'Inter', system-ui, sans-serif;
+      --font-display: 'Outfit', 'Inter', sans-serif;
+      --transition: all 0.22s cubic-bezier(0.4,0,0.2,1);
+    }
+    /* Ensure orbs NEVER block clicks */
+    .hero-bg, .app-bg, .auth-bg, .orb { pointer-events: none !important; }
+  </style>
+</head>
+<body>
+
+  <!-- ══════════════════════════ AUTH SCREEN ══════════════════════════════ -->
+  <div id="auth-screen" class="screen active">
+    <div class="auth-bg" style="pointer-events:none;">
+      <div class="orb orb-1" style="pointer-events:none;"></div>
+      <div class="orb orb-2" style="pointer-events:none;"></div>
+      <div class="orb orb-3" style="pointer-events:none;"></div>
+    </div>
+
+    <div class="auth-wrapper">
+      <!-- Brand -->
+      <div class="auth-brand">
+        <span class="logo-icon">⬡</span>
+        <span class="auth-brand-name">ResearchLens <span class="logo-ai">AI</span></span>
+      </div>
+      <p class="auth-tagline">Your AI-powered research analysis platform</p>
+
+      <!-- Auth Card -->
+      <div class="auth-card">
+        <!-- Tab Switch -->
+        <div class="auth-tabs">
+          <button class="auth-tab active" id="tab-signin" onclick="switchAuthTab('signin')">Sign In</button>
+          <button class="auth-tab" id="tab-register" onclick="switchAuthTab('register')">Create Account</button>
+        </div>
+
+        <!-- Sign In Form -->
+        <form class="auth-form" id="signin-form" onsubmit="handleLogin(event)">
+          <div class="form-group">
+            <input type="email" id="login-email" class="form-input" placeholder=" " autocomplete="email" required />
+            <label class="form-label" for="login-email">Email address</label>
+          </div>
+          <div class="form-group">
+            <input type="password" id="login-password" class="form-input" placeholder=" " autocomplete="current-password" required />
+            <label class="form-label" for="login-password">Password</label>
+            <button type="button" class="pwd-toggle" onclick="togglePassword('login-password', this)" tabindex="-1">👁</button>
+          </div>
+          <div class="auth-error" id="login-error"></div>
+          <button type="submit" class="btn-auth" id="login-btn">
+            <span class="btn-auth-text">Sign In</span>
+            <div class="btn-spinner" style="display:none;"></div>
+          </button>
+          <button type="button" class="btn-guest" onclick="continueAsGuest()">Continue as Guest →</button>
+        </form>
+
+        <!-- Register Form -->
+        <form class="auth-form" id="register-form" style="display:none;" onsubmit="handleRegister(event)">
+          <div class="form-group">
+            <input type="text" id="reg-name" class="form-input" placeholder=" " autocomplete="name" required />
+            <label class="form-label" for="reg-name">Full name</label>
+          </div>
+          <div class="form-group">
+            <input type="email" id="reg-email" class="form-input" placeholder=" " autocomplete="email" required />
+            <label class="form-label" for="reg-email">Email address</label>
+          </div>
+          <div class="form-group">
+            <input type="password" id="reg-password" class="form-input" placeholder=" " autocomplete="new-password" required />
+            <label class="form-label" for="reg-password">Password (min 6 chars)</label>
+            <button type="button" class="pwd-toggle" onclick="togglePassword('reg-password', this)" tabindex="-1">👁</button>
+          </div>
+          <div class="pwd-strength" id="pwd-strength" style="display:none;">
+            <div class="pwd-strength-bar" id="pwd-strength-bar"></div>
+            <span class="pwd-strength-label" id="pwd-strength-label">Weak</span>
+          </div>
+          <div class="auth-error" id="register-error"></div>
+          <button type="submit" class="btn-auth" id="register-btn">
+            <span class="btn-auth-text">Create Account</span>
+            <div class="btn-spinner" style="display:none;"></div>
+          </button>
+          <button type="button" class="btn-guest" onclick="continueAsGuest()">Continue as Guest →</button>
+        </form>
+      </div>
+
+      <p class="auth-footer">Your papers are analyzed privately and securely.</p>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════ DASHBOARD SCREEN ═════════════════════════ -->
+  <div id="dashboard-screen" class="screen">
+    <div class="app-bg" style="pointer-events:none;">
+      <div class="orb orb-1 small" style="pointer-events:none;"></div>
+      <div class="orb orb-3 small" style="pointer-events:none;"></div>
+    </div>
+
+    <!-- Dashboard Header -->
+    <header class="dash-header">
+      <div class="logo">
+        <span class="logo-icon">⬡</span>
+        <span class="logo-text">ResearchLens <span class="logo-ai">AI</span></span>
+      </div>
+      <nav class="dash-nav">
+        <a href="#" class="dash-nav-link active" onclick="showScreen('dashboard'); return false;">Dashboard</a>
+        <a href="#" class="dash-nav-link" onclick="showScreen('landing'); return false;">Analyze Paper</a>
+      </nav>
+      <div class="header-right">
+        <div class="user-menu" id="user-menu">
+          <div class="user-avatar-btn" id="user-avatar-btn" onclick="toggleUserDropdown()">
+            <div class="user-avatar-circle" id="user-avatar-circle">?</div>
+            <span class="user-avatar-name" id="user-avatar-name">User</span>
+            <span class="chevron">▾</span>
+          </div>
+          <div class="user-dropdown" id="user-dropdown">
+            <div class="ud-profile">
+              <div class="ud-avatar" id="ud-avatar">?</div>
+              <div>
+                <div class="ud-name" id="ud-name">User</div>
+                <div class="ud-email" id="ud-email">user@example.com</div>
+              </div>
+            </div>
+            <div class="ud-divider"></div>
+            <button class="ud-item" onclick="handleLogout()">🚪 Sign Out</button>
+          </div>
+        </div>
+        <!-- Guest header -->
+        <div id="guest-header-dash" class="guest-header" style="display:none;">
+          <button class="btn-signin-header" onclick="showScreen('auth')">Sign In</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Welcome Banner -->
+    <div class="dash-welcome">
+      <div class="dash-welcome-text">
+        <h1 class="dash-greeting">Welcome back, <span class="gradient-text" id="greeting-name">Researcher</span> 👋</h1>
+        <p class="dash-subtitle">Ready to analyze your next breakthrough paper?</p>
+      </div>
+      <button class="btn-cta-dash" id="btn-analyze-new" onclick="showScreen('landing')">
+        <span>✦</span> Analyze New Paper
+      </button>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="stats-row" id="stats-row">
+      <div class="stat-card">
+        <div class="stat-icon-wrap stat-blue"><span>📄</span></div>
+        <div class="stat-info">
+          <div class="stat-value" id="stat-papers">0</div>
+          <div class="stat-label">Papers Analyzed</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon-wrap stat-teal"><span>💬</span></div>
+        <div class="stat-info">
+          <div class="stat-value" id="stat-chats">0</div>
+          <div class="stat-label">AI Conversations</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon-wrap stat-purple"><span>📋</span></div>
+        <div class="stat-info">
+          <div class="stat-value" id="stat-reviews">0</div>
+          <div class="stat-label">Reviews Generated</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon-wrap stat-green"><span>🔭</span></div>
+        <div class="stat-info">
+          <div class="stat-value" id="stat-discovers">0</div>
+          <div class="stat-label">Papers Discovered</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Sessions -->
+    <div class="dash-section">
+      <div class="dash-section-header">
+        <h2>Recent Papers</h2>
+        <button class="btn-clear-history" id="btn-clear-history" onclick="clearHistory()" style="display:none;">Clear History</button>
+      </div>
+      <div class="sessions-grid" id="sessions-grid">
+        <!-- populated by JS -->
+      </div>
+    </div>
+
+    <!-- Capabilities Section -->
+    <div class="dash-section">
+      <div class="dash-section-header">
+        <h2>Platform Capabilities</h2>
+      </div>
+      <div class="capabilities-grid">
+        <div class="cap-card">
+          <div class="cap-icon">🧠</div>
+          <h3>AI Summarization</h3>
+          <p>Get structured, multi-section summaries of any research paper instantly.</p>
+        </div>
+        <div class="cap-card">
+          <div class="cap-icon">💬</div>
+          <h3>RAG Chatbot</h3>
+          <p>Ask anything about the paper — answers grounded in exact page content.</p>
+        </div>
+        <div class="cap-card">
+          <div class="cap-icon">📋</div>
+          <h3>Expert Peer Review</h3>
+          <p>Generate a structured academic review with scores and actionable feedback.</p>
+        </div>
+        <div class="cap-card">
+          <div class="cap-icon">🏛️</div>
+          <h3>Venue Finder</h3>
+          <p>Discover the best conferences and journals to publish your research.</p>
+        </div>
+        <div class="cap-card">
+          <div class="cap-icon">🔗</div>
+          <h3>Similar Papers</h3>
+          <p>Find related research from arXiv and beyond to enrich your literature review.</p>
+        </div>
+        <div class="cap-card">
+          <div class="cap-icon">🖼️</div>
+          <h3>Image & Table Analysis</h3>
+          <p>Figures and tables are extracted and described by AI for richer context.</p>
+        </div>
+      </div>
+    </div>
+  </div><!-- /dashboard-screen -->
+
+  <!-- ══════════════════════════ LANDING / UPLOAD ══════════════════════════ -->
+  <div id="landing-screen" class="screen">
+    <div class="hero-bg" style="pointer-events:none;">
+      <div class="orb orb-1" style="pointer-events:none;"></div>
+      <div class="orb orb-2" style="pointer-events:none;"></div>
+      <div class="orb orb-3" style="pointer-events:none;"></div>
+    </div>
+
+    <header class="hero-header">
+      <div class="logo clickable" id="back-to-dash-landing" onclick="showScreen('dashboard')">
+        <span class="logo-icon">⬡</span>
+        <span class="logo-text">ResearchLens <span class="logo-ai">AI</span></span>
+      </div>
+      <nav class="hero-nav">
+        <a href="#features">Features</a>
+        <a href="http://localhost:8000/docs" target="_blank">API Docs</a>
+      </nav>
+      <div class="header-right">
+        <div class="user-menu" id="user-menu-landing">
+          <div class="user-avatar-btn" id="user-avatar-btn-landing" onclick="toggleUserDropdown('landing')">
+            <div class="user-avatar-circle" id="user-avatar-circle-landing">?</div>
+            <span class="user-avatar-name" id="user-avatar-name-landing">User</span>
+            <span class="chevron">▾</span>
+          </div>
+          <div class="user-dropdown" id="user-dropdown-landing">
+            <div class="ud-profile">
+              <div class="ud-avatar" id="ud-avatar-landing">?</div>
+              <div>
+                <div class="ud-name" id="ud-name-landing">User</div>
+                <div class="ud-email" id="ud-email-landing">user@example.com</div>
+              </div>
+            </div>
+            <div class="ud-divider"></div>
+            <button class="ud-item" onclick="showScreen('dashboard')">🏠 Dashboard</button>
+            <button class="ud-item" onclick="handleLogout()">🚪 Sign Out</button>
+          </div>
+        </div>
+        <div id="guest-header-landing" class="guest-header" style="display:none;">
+          <button class="btn-signin-header" onclick="showScreen('auth')">Sign In</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="hero-main">
+      <div class="hero-badge">✦ Powered by Gemini &amp; Groq Vision</div>
+      <h1 class="hero-title">Analyze Research Papers<br /><span class="gradient-text">with AI Precision</span></h1>
+      <p class="hero-subtitle">Upload any PDF — get instant summaries, peer reviews, publication recommendations, and discover related work. Built for researchers.</p>
+
+      <!-- Upload Zone -->
+      <div class="upload-card" id="upload-zone">
+        <div class="upload-inner" id="upload-inner">
+          <div class="upload-icon-wrap">
+            <svg class="upload-icon" viewBox="0 0 64 64" fill="none">
+              <rect x="8" y="8" width="48" height="48" rx="8" stroke="currentColor" stroke-width="2"/>
+              <path d="M32 20v16M24 28l8-8 8 8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M20 44h24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <p class="upload-title">Drop your research paper here</p>
+          <p class="upload-sub">PDF up to 50MB · Supports images &amp; tables</p>
+          <label class="btn-upload" for="file-input" id="upload-btn-label">
+            <span>Choose PDF File</span>
+            <input type="file" id="file-input" accept=".pdf" hidden />
+          </label>
+          <div class="upload-hints">
+            <span>📄 Research papers</span>
+            <span>🔬 Academic articles</span>
+            <span>📊 Technical reports</span>
+          </div>
+        </div>
+
+        <!-- Progress Overlay -->
+        <div class="upload-progress" id="upload-progress" style="display:none;">
+          <div class="progress-anim">
+            <div class="spinner-ring"></div>
+            <span class="progress-icon">🧠</span>
+          </div>
+          <p class="progress-title" id="progress-title">Extracting content…</p>
+          <p class="progress-sub" id="progress-sub">Processing your PDF with AI</p>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar" id="progress-bar"></div>
+          </div>
+          <div class="progress-steps">
+            <div class="ps" id="ps-1">📂 Parsing PDF</div>
+            <div class="ps" id="ps-2">🖼️ Analyzing images</div>
+            <div class="ps" id="ps-3">✂️ Chunking content</div>
+            <div class="ps" id="ps-4">✨ Generating summary</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="feature-pills">
+        <div class="pill">💬 AI Chatbot</div>
+        <div class="pill">📋 Peer Review</div>
+        <div class="pill">🏛️ Conferences</div>
+        <div class="pill">🔗 Similar Papers</div>
+      </div>
+    </main>
+
+    <!-- Features Section -->
+    <section class="features-section" id="features">
+      <h2>Everything you need to publish</h2>
+      <div class="features-grid">
+        <div class="feature-card" onclick="featureCardClick('chat')" role="button" tabindex="0">
+          <div class="fc-icon">💬</div>
+          <h3>Paper Chatbot</h3>
+          <p>Ask any question about the uploaded paper. Get contextual answers with page references.</p>
+          <div class="fc-arrow">→ Try it</div>
+        </div>
+        <div class="feature-card" onclick="featureCardClick('review')" role="button" tabindex="0">
+          <div class="fc-icon">📋</div>
+          <h3>Expert Review</h3>
+          <p>Receive a structured peer review with scores, strengths, weaknesses, and actionable improvements.</p>
+          <div class="fc-arrow">→ Try it</div>
+        </div>
+        <div class="feature-card" onclick="featureCardClick('discover')" role="button" tabindex="0">
+          <div class="fc-icon">🏛️</div>
+          <h3>Venue Finder</h3>
+          <p>Discover the best conferences and journals to publish your research, ranked by relevance.</p>
+          <div class="fc-arrow">→ Try it</div>
+        </div>
+        <div class="feature-card" onclick="featureCardClick('discover')" role="button" tabindex="0">
+          <div class="fc-icon">🔗</div>
+          <h3>Similar Papers</h3>
+          <p>Find 7+ related research papers from arXiv and beyond to enrich your literature review.</p>
+          <div class="fc-arrow">→ Try it</div>
+        </div>
+      </div>
+    </section>
+  </div><!-- /landing-screen -->
+
+  <!-- ══════════════════════════ ANALYSIS SCREEN ═══════════════════════════ -->
+  <div id="analysis-screen" class="screen">
+    <div class="app-bg" style="pointer-events:none;">
+      <div class="orb orb-1 small" style="pointer-events:none;"></div>
+      <div class="orb orb-3 small" style="pointer-events:none;"></div>
+    </div>
+
+    <!-- App Header -->
+    <header class="app-header">
+      <div class="logo clickable" id="back-btn" title="Go to Dashboard" onclick="showScreen('dashboard')">
+        <span class="logo-icon">⬡</span>
+        <span class="logo-text">ResearchLens <span class="logo-ai">AI</span></span>
+      </div>
+      <div class="paper-badge" id="paper-badge">
+        <span class="paper-badge-icon">📄</span>
+        <span class="paper-badge-title" id="paper-title-badge">Paper Title</span>
+        <span class="paper-badge-pages" id="paper-pages-badge">— pages</span>
+      </div>
+      <div class="header-right">
+        <button class="btn-new" id="btn-new-paper" onclick="showScreen('landing')">+ New Paper</button>
+        <div class="user-menu" id="user-menu-analysis">
+          <div class="user-avatar-btn" id="user-avatar-btn-analysis" onclick="toggleUserDropdown('analysis')">
+            <div class="user-avatar-circle" id="user-avatar-circle-analysis">?</div>
+          </div>
+          <div class="user-dropdown" id="user-dropdown-analysis">
+            <div class="ud-profile">
+              <div class="ud-avatar" id="ud-avatar-analysis">?</div>
+              <div>
+                <div class="ud-name" id="ud-name-analysis">User</div>
+                <div class="ud-email" id="ud-email-analysis">user@example.com</div>
+              </div>
+            </div>
+            <div class="ud-divider"></div>
+            <button class="ud-item" onclick="showScreen('dashboard')">🏠 Dashboard</button>
+            <button class="ud-item" onclick="handleLogout()">🚪 Sign Out</button>
+          </div>
+        </div>
+        <div id="guest-header-analysis" class="guest-header" style="display:none;">
+          <button class="btn-signin-header" onclick="showScreen('auth')">Sign In</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Tab Navigation -->
+    <nav class="tab-nav" id="tab-nav">
+      <button class="tab-btn active" data-tab="summary" id="tab-summary">
+        <span class="tab-icon">📝</span> Summary
+      </button>
+      <button class="tab-btn" data-tab="chat" id="tab-chat">
+        <span class="tab-icon">💬</span> Chat
+      </button>
+      <button class="tab-btn" data-tab="review" id="tab-review">
+        <span class="tab-icon">📋</span> Review
+      </button>
+      <button class="tab-btn" data-tab="discover" id="tab-discover">
+        <span class="tab-icon">🔭</span> Discover
+      </button>
+    </nav>
+
+    <!-- Tab Panels -->
+    <div class="tab-content">
+
+      <!-- SUMMARY PANEL -->
+      <div class="tab-panel active" id="panel-summary">
+        <div class="panel-header">
+          <h2>Paper Summary</h2>
+          <button class="btn-copy" id="copy-summary-btn" title="Copy summary">⎘ Copy</button>
+        </div>
+        <div class="summary-content glass-card" id="summary-content">
+          <div class="skeleton-lines">
+            <div class="sk-line wide"></div>
+            <div class="sk-line"></div>
+            <div class="sk-line medium"></div>
+            <div class="sk-line"></div>
+            <div class="sk-line wide"></div>
+            <div class="sk-line short"></div>
+          </div>
+        </div>
+        <div class="meta-pills" id="meta-pills">
+          <div class="meta-pill" id="meta-pages"><span>📄</span> <span id="meta-pages-val">—</span> pages</div>
+          <div class="meta-pill" id="meta-chunks"><span>✂️</span> <span id="meta-chunks-val">—</span> chunks</div>
+          <div class="meta-pill has-img" id="meta-img" style="display:none;"><span>🖼️</span> Has images</div>
+          <div class="meta-pill has-tbl" id="meta-tbl" style="display:none;"><span>📊</span> Has tables</div>
+        </div>
+      </div>
+
+      <!-- CHAT PANEL -->
+      <div class="tab-panel" id="panel-chat">
+        <div class="chat-container">
+          <div class="chat-messages" id="chat-messages">
+            <div class="chat-welcome">
+              <div class="cw-icon">💬</div>
+              <h3>Ask anything about the paper</h3>
+              <p>I have full context of the paper including all images and tables.</p>
+              <div class="cw-suggestions" id="chat-suggestions">
+                <button class="suggestion-chip" onclick="sendSuggestion(this)">What is the main contribution?</button>
+                <button class="suggestion-chip" onclick="sendSuggestion(this)">Summarize the methodology</button>
+                <button class="suggestion-chip" onclick="sendSuggestion(this)">What are the key results?</button>
+                <button class="suggestion-chip" onclick="sendSuggestion(this)">What are the limitations?</button>
+              </div>
+            </div>
+          </div>
+          <div class="chat-input-area">
+            <div class="chat-input-wrap">
+              <textarea id="chat-input" class="chat-input" placeholder="Ask a question about the paper…" rows="1" autocomplete="off"></textarea>
+              <button class="chat-send-btn" id="chat-send-btn" title="Send">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path d="M22 2L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            </div>
+            <p class="chat-hint">Press <kbd>Enter</kbd> to send · <kbd>Shift+Enter</kbd> for new line</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- REVIEW PANEL -->
+      <div class="tab-panel" id="panel-review">
+        <div class="panel-header">
+          <h2>Publication Review</h2>
+          <button class="btn-copy" id="copy-review-btn" title="Copy review">⎘ Copy</button>
+        </div>
+        <div id="review-content">
+          <div class="review-loading" id="review-loading">
+            <div class="spinner-ring"></div>
+            <p>Generating expert peer review…</p>
+          </div>
+          <div class="review-body" id="review-body" style="display:none;"></div>
+        </div>
+      </div>
+
+      <!-- DISCOVER PANEL -->
+      <div class="tab-panel" id="panel-discover">
+        <div class="discover-grid">
+          <div class="discover-col">
+            <div class="panel-header">
+              <h2>🏛️ Conferences &amp; Journals</h2>
+            </div>
+            <div id="conference-loading" class="discover-loading">
+              <div class="spinner-ring"></div>
+              <p>Searching publication venues…</p>
+            </div>
+            <div id="conference-content" style="display:none;" class="glass-card prose-content"></div>
+          </div>
+          <div class="discover-col">
+            <div class="panel-header">
+              <h2>🔗 Similar Papers</h2>
+            </div>
+            <div id="similar-loading" class="discover-loading">
+              <div class="spinner-ring"></div>
+              <p>Finding related research…</p>
+            </div>
+            <div id="similar-content" style="display:none;" class="glass-card prose-content"></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /tab-content -->
+  </div><!-- /analysis-screen -->
+
+  <!-- Toast notification -->
+  <div class="toast" id="toast"></div>
+
+  <script src="/static/config.js"></script>  <script src="/static/app.js"></script>
+</body>
+</html>
