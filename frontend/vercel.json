@@ -1,6 +1,12 @@
 {
   "cleanUrls": true,
   "trailingSlash": false,
+  "rewrites": [
+    {
+      "source": "/static/:match*",
+      "destination": "/:match*"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
