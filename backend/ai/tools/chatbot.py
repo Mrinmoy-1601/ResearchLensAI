@@ -86,5 +86,12 @@ async def answer_question(
     log.info("RAG answer | question=%r | retrieved_chunks=%d", question[:60], len(relevant))
 
     answer = await call_ai(prompt, max_tokens=2048)
+    
+    # Process the raw text answer into a structured JSON file via the new agent
+    from ai.tools.json_filter import process_answer_to_json
+    import asyncio
+    # Run in background to avoid blocking the response, or run synchronously. We run async.
+    asyncio.create_task(process_answer_to_json(answer, output_file="answer.json"))
+
     page_refs = list({c.page_range for c in relevant})
     return {"reply": answer, "page_refs": page_refs}
