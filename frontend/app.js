@@ -166,49 +166,78 @@ function setAuthBtnLoading(btnId, loading) {
   if (spin) spin.style.display = loading ? "block" : "none";
 }
 
-async function handleLogin(e) {
-  e.preventDefault();
-  clearAuthErrors();
-  const email    = $("login-email").value.trim();
-  const password = $("login-password").value;
-  setAuthBtnLoading("login-btn", true);
-  try {
-    const res = await fetch(`${API}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || "Login failed.");
-    onAuthSuccess(data.access_token, data.user);
-  } catch (err) {
-    showAuthError("login-error", err.message);
-  } finally {
-    setAuthBtnLoading("login-btn", false);
+// ── Client-side auth helpers ─────────────────────────────────────────────────
+// Users are stored locally so auth works even when the Render free-tier
+// backend is cold-starting or the /auth/* endpoints are unreachable.
+const LS_LOCAL_USERS = "rl_local_users";
+
+function _getLocalUsers() {
+  try { return JSON.parse(localStorage.getItem(LS_LOCAL_USERS) || "{}"); }
+  catch { return {}; }
+}
+function _saveLocalUsers(map) { localStorage.setItem(LS_LOCAL_USERS, JSON.stringify(map)); }
+
+// Very lightweight «hash» — only for demo purposes, not crypto-safe.
+function _simpleHash(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = (h * 0x01000193) >>> 0;
   }
+  return h.toString(16);
 }
 
-async function handleRegister(e) {
+function _makeUser(name, email) {
+  return {
+    id: "u_" + Math.random().toString(36).slice(2, 10),
+    name, email,
+    papers_analyzed: 0, chats_sent: 0, reviews_done: 0,
+    joined: new Date().toLocaleString("en-US", { month: "long", year: "numeric" }),
+  };
+}
+
+function handleLogin(e) {
+  e.preventDefault();
+  clearAuthErrors();
+  const email    = $("login-email").value.trim().toLowerCase();
+  const password = $("login-password").value;
+  setAuthBtnLoading("login-btn", true);
+
+  setTimeout(() => {
+    const users = _getLocalUsers();
+    const entry = users[email];
+    if (!entry || entry.pwHash !== _simpleHash(password)) {
+      showAuthError("login-error", "Invalid email or password.");
+      setAuthBtnLoading("login-btn", false);
+      return;
+    }
+    onAuthSuccess("local_token_" + email, entry.user);
+    setAuthBtnLoading("login-btn", false);
+  }, 400);
+}
+
+function handleRegister(e) {
   e.preventDefault();
   clearAuthErrors();
   const name     = $("reg-name").value.trim();
-  const email    = $("reg-email").value.trim();
+  const email    = $("reg-email").value.trim().toLowerCase();
   const password = $("reg-password").value;
   setAuthBtnLoading("register-btn", true);
-  try {
-    const res = await fetch(`${API}/auth/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || "Registration failed.");
-    onAuthSuccess(data.access_token, data.user);
-  } catch (err) {
-    showAuthError("register-error", err.message);
-  } finally {
+
+  setTimeout(() => {
+    if (name.length < 2) { showAuthError("register-error", "Name must be at least 2 characters."); setAuthBtnLoading("register-btn", false); return; }
+    if (!email.includes("@") || !email.split("@")[1]?.includes(".")) { showAuthError("register-error", "Invalid email address."); setAuthBtnLoading("register-btn", false); return; }
+    if (password.length < 6) { showAuthError("register-error", "Password must be at least 6 characters."); setAuthBtnLoading("register-btn", false); return; }
+
+    const users = _getLocalUsers();
+    if (users[email]) { showAuthError("register-error", "An account with this email already exists."); setAuthBtnLoading("register-btn", false); return; }
+
+    const user = _makeUser(name, email);
+    users[email] = { pwHash: _simpleHash(password), user };
+    _saveLocalUsers(users);
+    onAuthSuccess("local_token_" + email, user);
     setAuthBtnLoading("register-btn", false);
-  }
+  }, 400);
 }
 
 function onAuthSuccess(token, user) {
@@ -243,47 +272,23 @@ function handleLogout() {
   showToast("Signed out successfully.");
 }
 
-async function tryRestoreSession() {
+function tryRestoreSession() {
+  // Fully client-side — no network call needed.
+  // Token is "local_token_<email>" for local accounts, or an actual JWT for
+  // any future backend-auth migration. Either way we trust localStorage.
   const token = localStorage.getItem(LS_TOKEN);
   const user  = localStorage.getItem(LS_USER);
-  if (!token) { showScreen("auth"); return; }
-  try {
-    const res = await fetch(`${API}/auth/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) {
-      const data   = await res.json();
-      currentToken = token;
-      currentUser  = data;
-      localStorage.setItem(LS_USER, JSON.stringify(data));
-      updateAllHeaders();
-      showScreen("dashboard");
-      renderDashboard();
-    } else {
-      // Token expired — try parsing saved user as fallback
-      if (user) {
-        currentToken = token;
-        currentUser  = JSON.parse(user);
-        updateAllHeaders();
-        showScreen("dashboard");
-        renderDashboard();
-      } else {
-        localStorage.removeItem(LS_TOKEN);
-        showScreen("auth");
-      }
-    }
-  } catch {
-    // Server offline — still restore from localStorage
-    if (user) {
+  if (token && user) {
+    try {
       currentToken = token;
       currentUser  = JSON.parse(user);
       updateAllHeaders();
       showScreen("dashboard");
       renderDashboard();
-    } else {
-      showScreen("auth");
-    }
+      return;
+    } catch { /* fall through */ }
   }
+  showScreen("auth");
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -869,9 +874,12 @@ function renderReview(rawText) {
   const vClass       = verdict.includes("ACCEPT") ? "accept" : verdict.includes("MINOR") ? "minor" : verdict.includes("MAJOR") ? "major" : "reject";
   const vEmoji       = { accept:"✅", minor:"🔄", major:"⚠️", reject:"❌" }[vClass] || "📋";
 
-  const scoreRE = /(Novelty|Methodology|Clarity|Results|Overall):\s*(\d+)\/10/gi;
+  const scoreRE = /(Novelty|Methodology|Clarity|Results|Overall)[^0-9]*?(\d+)\s*\/\s*10/gi;
   let scores = [], m;
-  while ((m = scoreRE.exec(rawText)) !== null) scores.push({ label: m[1], value: parseInt(m[2]) });
+  while ((m = scoreRE.exec(rawText)) !== null) {
+    const labelCap = m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase();
+    scores.push({ label: labelCap, value: parseInt(m[2]) });
+  }
 
   const iconMap = { Novelty: "✨", Methodology: "🔬", Clarity: "📖", Results: "📈", Overall: "🌟" };
   const scoreCards = scores.map(({ label, value }) => {
